@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mango聊天</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+        }
+        
+        body {
+            background: #fffaf0;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            color: #ff9800;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .chat-app {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border: 1px solid #ffe0b2;
+        }
+        
+        .screen {
+            background: #fffaf0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            min-height: 200px;
+            border: 1px solid #ffcc80;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            max-height: 300px;
+        }
+        
+        .message {
+            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 6px;
+            background: white;
+        }
+        
+        .message.received {
+            border-left: 3px solid #ffb74d;
+        }
+        
+        .message.sent {
+            border-left: 3px solid #ff9800;
+            text-align: right;
+        }
+        
+        .message-time {
+            font-size: 0.7rem;
+            color: #999;
+            margin-top: 5px;
+        }
+        
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        input, button {
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #ffcc80;
+            font-size: 1rem;
+        }
+        
+        input {
+            flex: 1;
+            background: white;
+            color: #333;
+        }
+        
+        button {
+            background: #ff9800;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        
+        button:hover {
+            background: #f57c00;
+        }
+        
+        button:disabled {
+            background: #ffcc80;
+            cursor: not-allowed;
+        }
+        
+        .connection-info {
+            background: #fff3e0;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+        
+        .status-indicator.connected {
+            background: #4caf50;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .controls button {
+            flex: 1;
+            min-width: 120px;
+            background: #ffcc80;
+            color: #333;
+        }
+        
+        .controls button:hover {
+            background: #ffb74d;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px;
+            background: #ff9800;
+            color: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateX(150%);
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.error {
+            background: #f44336;
+        }
+        
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #999;
+            font-size: 0.8rem;
+        }
+        
+        .connection-code {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .connection-code input {
+            flex: 1;
+        }
+        
+        .custom-id-area {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .custom-id-area input {
+            flex: 1;
+        }
+        
+        .contacts-section {
+            margin-top: 15px;
+        }
+        
+        .contacts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .contacts-title {
+            font-weight: 600;
+            color: #ff9800;
+        }
+        
+        .contacts-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ffcc80;
+            border-radius: 6px;
+            padding: 10px;
+            background: #fffaf0;
+        }
+        
+        .contact-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #ffcc80;
+        }
+        
+        .contact-item:last-child {
+            border-bottom: none;
+        }
+        
+        .contact-info {
+            flex: 1;
+        }
+        
+        .contact-name {
+            font-weight: 500;
+        }
+        
+        .contact-id {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .contact-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .contact-btn {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            background: #ffcc80;
+        }
+        
+        .contact-btn.connect {
+            background: #ff9800;
+            color: white;
+        }
+        
+        /* 模态框样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+        
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            border: 1px solid #ffcc80;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modal-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 1.8rem;
+            color: #ff9800;
+            margin-bottom: 10px;
+        }
+        
+        .modal-content {
+            background: #fffaf0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .modal-btn {
+            padding: 12px 25px;
+            border-radius: 6px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .modal-btn.agree {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .modal-btn.disagree {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .modal-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        @media (max-width: 600px) {
+            .chat-app {
+                padding: 15px;
+            }
+            
+            .controls button {
+                min-width: 100%;
+            }
+            
+            .modal {
+                padding: 20px;
+            }
+            
+            .modal-footer {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 免责声明模态框 -->
+    <div class="modal-overlay" id="disclaimerModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Mango聊天免责声明</h2>
+                <p>请仔细阅读以下内容</p>
+            </div>
+            <div class="modal-content">
+                <p>Mango聊天是一个基于WebRTC技术的点对点(P2P)通信演示应用。在使用本应用前，请您仔细阅读并理解以下免责声明：</p>
+                
+                <p>1. 本应用通过PeerJS公共服务器进行信令交换，但实际通信是点对点直接进行的。</p>
+                
+                <p>2. 我们不会存储您的任何通信内容，但无法保证通信过程中的绝对安全性。</p>
+                
+                <p>3. 请勿使用本应用传输任何敏感、机密或受法律保护的信息。</p>
+                
+                <p>4. 本应用按"原样"提供，不提供任何形式的明示或暗示担保，包括但不限于对适用性、特定用途适用性的担保。</p>
+                
+                <p>5. 您需对使用本应用的行为承担全部责任，包括但不限于传输内容的法律合规性。</p>
+                
+                <p>6. 我们保留随时修改或终止服务的权利，恕不另行通知。</p>
+                
+                <p>继续使用本应用即表示您已阅读、理解并同意以上所有条款。</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn disagree" id="disagreeBtn">不同意</button>
+                <button class="modal-btn agree" id="agreeBtn">同意并继续</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加联系人模态框 -->
+    <div class="modal-overlay hidden" id="addContactModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">添加联系人</h2>
+                <p>保存对方ID以便快速连接</p>
+            </div>
+            <div class="modal-content">
+                <div style="margin-bottom: 15px;">
+                    <label for="contactNameInput">联系人名称</label>
+                    <input type="text" id="contactNameInput" placeholder="输入联系人名称" style="width: 100%; margin-top: 5px;">
+                </div>
+                <div>
+                    <label for="contactIdInput">联系人ID</label>
+                    <input type="text" id="contactIdInput" placeholder="输入联系人ID" style="width: 100%; margin-top: 5px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn disagree" id="cancelContactBtn">取消</button>
+                <button class="modal-btn agree" id="saveContactBtn">保存联系人</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <header>
+            <h1>Mango聊天</h1>
+            <p>基于WebRTC的点对点通信</p>
+        </header>
+        
+        <div class="chat-app">
+            <div class="connection-info">
+                <div class="status">
+                    <span>连接状态:</span>
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span id="statusText">等待用户同意免责声明...</span>
+                </div>
+                <div>您的ID: <span id="peerId">等待初始化...</span></div>
+                <div class="connection-code">
+                    <input type="text" id="remoteIdInput" placeholder="输入对方ID" disabled>
+                    <button id="connectBtn" disabled>连接</button>
+                </div>
+                <div class="custom-id-area">
+                    <input type="text" id="customIdInput" placeholder="输入自定义ID" maxlength="20">
+                    <button id="setCustomIdBtn">设置ID</button>
+                </div>
+            </div>
+
+            <div class="contacts-section">
+                <div class="contacts-header">
+                    <span class="contacts-title">联系人</span>
+                    <button id="addContactBtn" style="padding: 5px 10px; font-size: 0.8rem;">添加联系人</button>
+                </div>
+                <div class="contacts-list" id="contactsList">
+                    <!-- 联系人列表将在这里动态生成 -->
+                    <div class="contact-item empty-contacts">
+                        <div>暂无联系人，点击"添加联系人"添加</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="screen" id="messageScreen">
+                <div class="message received">
+                    <div>欢迎使用Mango聊天!</div>
+                    <div class="message-time">系统消息</div>
+                </div>
+                <div class="message received">
+                    <div>请阅读并同意免责声明以开始使用</div>
+                    <div class="message-time">系统消息</div>
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <input type="text" id="messageInput" placeholder="输入消息" disabled>
+                <button id="sendBtn" disabled>发送</button>
+            </div>
+            
+            <div class="controls">
+                <button id="copyIdBtn" disabled>复制我的ID</button>
+                <button id="clearBtn">清空消息</button>
+                <button id="disconnectBtn" disabled>断开连接</button>
+                <button id="resetIdBtn">重置为随机ID</button>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Mango聊天 &copy; 2022-2026 - 基于WebRTC的P2P通信</p>
+        </footer>
+    </div>
+    
+    <div class="notification" id="notification">
+        消息已发送!
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM元素
+            const disclaimerModal = document.getElementById('disclaimerModal');
+            const agreeBtn = document.getElementById('agreeBtn');
+            const disagreeBtn = document.getElementById('disagreeBtn');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            const peerIdDisplay = document.getElementById('peerId');
+            const messageScreen = document.getElementById('messageScreen');
+            const remoteIdInput = document.getElementById('remoteIdInput');
+            const messageInput = document.getElementById('messageInput');
+            const connectBtn = document.getElementById('connectBtn');
+            const sendBtn = document.getElementById('sendBtn');
+            const copyIdBtn = document.getElementById('copyIdBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const notification = document.getElementById('notification');
+            const customIdInput = document.getElementById('customIdInput');
+            const setCustomIdBtn = document.getElementById('setCustomIdBtn');
+            const resetIdBtn = document.getElementById('resetIdBtn');
+            const addContactBtn = document.getElementById('addContactBtn');
+            const addContactModal = document.getElementById('addContactModal');
+            const cancelContactBtn = document.getElementById('cancelContactBtn');
+            const saveContactBtn = document.getElementById('saveContactBtn');
+            const contactNameInput = document.getElementById('contactNameInput');
+            const contactIdInput = document.getElementById('contactIdInput');
+            const contactsList = document.getElementById('contactsList');
+            
+            // 状态变量
+            let peer = null;
+            let conn = null;
+            let isConnected = false;
+            let disclaimerAccepted = false;
+            
+            // 检查是否已经同意过免责声明
+            function checkDisclaimer() {
+                const accepted = localStorage.getItem('mangoBBDisclaimerAccepted');
+                if (accepted === 'true') {
+                    disclaimerAccepted = true;
+                    disclaimerModal.classList.add('hidden');
+                    initializeApp();
+                } else {
+                    disclaimerModal.classList.remove('hidden');
+                }
+            }
+            
+            // 同意免责声明
+            agreeBtn.addEventListener('click', function() {
+                localStorage.setItem('mangoBBDisclaimerAccepted', 'true');
+                disclaimerAccepted = true;
+                disclaimerModal.classList.add('hidden');
+                initializeApp();
+            });
+            
+            // 不同意免责声明
+            disagreeBtn.addEventListener('click', function() {
+                alert('您必须同意免责声明才能使用Mango聊天。');
+                // 可以在这里重定向到其他页面或显示更多信息
+            });
+            
+            // 初始化应用
+            function initializeApp() {
+                updateConnectionStatus('initializing');
+                initializePeer();
+                loadContacts();
+            }
+            
+            // 获取自定义ID或生成随机ID
+            function getPeerId() {
+                const savedCustomId = localStorage.getItem('mangoBBCustomId');
+                if (savedCustomId && savedCustomId.trim() !== '') {
+                    customIdInput.value = savedCustomId;
+                    return savedCustomId;
+                } else {
+                    return 'MANGO-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+                }
+            }
+            
+            // 初始化PeerJS
+            function initializePeer() {
+                // 断开现有连接
+                if (conn) {
+                    conn.close();
+                    conn = null;
+                    isConnected = false;
+                }
+                
+                // 销毁现有Peer实例
+                if (peer) {
+                    peer.destroy();
+                }
+                
+                // 获取ID
+                const peerId = getPeerId();
+                
+                // 创建Peer实例
+                peer = new Peer(peerId, {
+                    host: '0.peerjs.com',
+                    port: 443,
+                    path: '/',
+                    debug: 3
+                });
+                
+                // Peer已准备好
+                peer.on('open', function(id) {
+                    console.log('PeerJS已连接，ID:', id);
+                    peerIdDisplay.textContent = id;
+                    updateConnectionStatus('ready');
+                    addMessage('免责声明已接受，可以开始使用Mango聊天', true);
+                });
+                
+                // 处理连接错误
+                peer.on('error', function(err) {
+                    console.error('PeerJS错误:', err);
+                    
+                    // 如果是ID已被占用，则重置为随机ID
+                    if (err.type === 'unavailable-id') {
+                        showNotification('该ID已被使用，已重置为随机ID', true);
+                        localStorage.removeItem('mangoBBCustomId');
+                        customIdInput.value = '';
+                        initializePeer();
+                    } else {
+                        showNotification('连接错误: ' + err.message, true);
+                        updateConnectionStatus('error');
+                    }
+                });
+                
+                // 处理传入连接
+                peer.on('connection', function(connection) {
+                    console.log('收到连接请求:', connection.peer);
+                    
+                    // 如果已经有连接，拒绝新连接
+                    if (conn) {
+                        connection.close();
+                        showNotification('已有连接，拒绝新连接', true);
+                        return;
+                    }
+                    
+                    // 接受连接
+                    conn = connection;
+                    setupConnection();
+                    updateConnectionStatus('connected');
+                    showNotification(`已连接到 ${connection.peer}`);
+                });
+            }
+            
+            // 设置连接事件处理
+            function setupConnection() {
+                // 连接已打开
+                conn.on('open', function() {
+                    console.log('连接已建立');
+                    isConnected = true;
+                    updateConnectionStatus('connected');
+                    showNotification('连接已建立');
+                });
+                
+                // 接收消息
+                conn.on('data', function(data) {
+                    console.log('收到消息:', data);
+                    addMessage(data, true);
+                    showNotification('收到新消息');
+                });
+                
+                // 连接关闭
+                conn.on('close', function() {
+                    console.log('连接已关闭');
+                    isConnected = false;
+                    conn = null;
+                    updateConnectionStatus('ready');
+                    showNotification('连接已断开');
+                });
+                
+                // 连接错误
+                conn.on('error', function(err) {
+                    console.error('连接错误:', err);
+                    showNotification('连接错误: ' + err.message, true);
+                });
+            }
+            
+            // 显示通知
+            function showNotification(message, isError = false) {
+                notification.textContent = message;
+                notification.className = 'notification' + (isError ? ' error' : '');
+                notification.classList.add('show');
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+            
+            // 更新连接状态
+            function updateConnectionStatus(status) {
+                switch(status) {
+                    case 'initializing':
+                        statusIndicator.className = 'status-indicator';
+                        statusText.textContent = '初始化中...';
+                        connectBtn.disabled = true;
+                        sendBtn.disabled = true;
+                        messageInput.disabled = true;
+                        disconnectBtn.disabled = true;
+                        copyIdBtn.disabled = true;
+                        remoteIdInput.disabled = true;
+                        customIdInput.disabled = true;
+                        setCustomIdBtn.disabled = true;
+                        resetIdBtn.disabled = true;
+                        addContactBtn.disabled = true;
+                        break;
+                    case 'ready':
+                        statusIndicator.className = 'status-indicator';
+                        statusText.textContent = '等待连接...';
+                        connectBtn.disabled = false;
+                        sendBtn.disabled = true;
+                        messageInput.disabled = true;
+                        disconnectBtn.disabled = true;
+                        copyIdBtn.disabled = false;
+                        remoteIdInput.disabled = false;
+                        customIdInput.disabled = false;
+                        setCustomIdBtn.disabled = false;
+                        resetIdBtn.disabled = false;
+                        addContactBtn.disabled = false;
+                        break;
+                    case 'connecting':
+                        statusIndicator.className = 'status-indicator';
+                        statusText.textContent = '连接中...';
+                        connectBtn.disabled = true;
+                        sendBtn.disabled = true;
+                        messageInput.disabled = true;
+                        disconnectBtn.disabled = true;
+                        copyIdBtn.disabled = true;
+                        remoteIdInput.disabled = true;
+                        customIdInput.disabled = true;
+                        setCustomIdBtn.disabled = true;
+                        resetIdBtn.disabled = true;
+                        addContactBtn.disabled = true;
+                        break;
+                    case 'connected':
+                        statusIndicator.className = 'status-indicator connected';
+                        statusText.textContent = '已连接';
+                        connectBtn.disabled = true;
+                        sendBtn.disabled = false;
+                        messageInput.disabled = false;
+                        disconnectBtn.disabled = false;
+                        copyIdBtn.disabled = false;
+                        remoteIdInput.disabled = true;
+                        customIdInput.disabled = true;
+                        setCustomIdBtn.disabled = true;
+                        resetIdBtn.disabled = true;
+                        addContactBtn.disabled = true;
+                        break;
+                    case 'error':
+                        statusIndicator.className = 'status-indicator';
+                        statusText.textContent = '连接错误';
+                        connectBtn.disabled = false;
+                        sendBtn.disabled = true;
+                        messageInput.disabled = true;
+                        disconnectBtn.disabled = true;
+                        copyIdBtn.disabled = false;
+                        remoteIdInput.disabled = false;
+                        customIdInput.disabled = false;
+                        setCustomIdBtn.disabled = false;
+                        resetIdBtn.disabled = false;
+                        addContactBtn.disabled = false;
+                        break;
+                }
+            }
+            
+            // 添加消息到屏幕
+            function addMessage(text, isReceived = true) {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message ' + (isReceived ? 'received' : 'sent');
+                
+                const messageContent = document.createElement('div');
+                messageContent.textContent = text;
+                messageElement.appendChild(messageContent);
+                
+                const messageTime = document.createElement('div');
+                messageTime.className = 'message-time';
+                messageTime.textContent = new Date().toLocaleTimeString();
+                messageElement.appendChild(messageTime);
+                
+                messageScreen.appendChild(messageElement);
+                messageScreen.scrollTop = messageScreen.scrollHeight;
+            }
+            
+            // 连接按钮事件
+            connectBtn.addEventListener('click', function() {
+                const remoteId = remoteIdInput.value.trim();
+                
+                if (!remoteId) {
+                    showNotification('请输入对方ID', true);
+                    return;
+                }
+                
+                if (remoteId === peer.id) {
+                    showNotification('不能连接自己', true);
+                    return;
+                }
+                
+                // 尝试连接
+                updateConnectionStatus('connecting');
+                conn = peer.connect(remoteId, {
+                    reliable: true
+                });
+                
+                if (!conn) {
+                    showNotification('连接失败', true);
+                    updateConnectionStatus('ready');
+                    return;
+                }
+                
+                setupConnection();
+            });
+            
+            // 发送消息按钮事件
+            sendBtn.addEventListener('click', function() {
+                const message = messageInput.value.trim();
+                
+                if (!message) {
+                    showNotification('请输入消息', true);
+                    return;
+                }
+                
+                if (!isConnected || !conn) {
+                    showNotification('未连接，无法发送消息', true);
+                    return;
+                }
+                
+                // 发送消息
+                conn.send(message);
+                addMessage(message, false);
+                messageInput.value = '';
+                showNotification('消息已发送');
+            });
+            
+            // 复制ID按钮事件
+            copyIdBtn.addEventListener('click', function() {
+                navigator.clipboard.writeText(peer.id)
+                    .then(() => {
+                        showNotification('ID已复制到剪贴板');
+                    })
+                    .catch(err => {
+                        console.error('复制失败: ', err);
+                        showNotification('复制失败，请手动复制', true);
+                    });
+            });
+            
+            // 清空消息按钮事件
+            clearBtn.addEventListener('click', function() {
+                messageScreen.innerHTML = `
+                    <div class="message received">
+                        <div>消息已清空</div>
+                        <div class="message-time">系统消息</div>
+                    </div>
+                `;
+            });
+            
+            // 断开连接按钮事件
+            disconnectBtn.addEventListener('click', function() {
+                if (conn) {
+                    conn.close();
+                    conn = null;
+                    isConnected = false;
+                    updateConnectionStatus('ready');
+                    showNotification('连接已断开');
+                }
+            });
+            
+            // 设置自定义ID按钮事件
+            setCustomIdBtn.addEventListener('click', function() {
+                const customId = customIdInput.value.trim();
+                
+                if (!customId) {
+                    showNotification('请输入自定义ID', true);
+                    return;
+                }
+                
+                if (customId.length < 3) {
+                    showNotification('自定义ID至少需要3个字符', true);
+                    return;
+                }
+                
+                if (customId === peer.id) {
+                    showNotification('新ID与当前ID相同', true);
+                    return;
+                }
+                
+                // 保存自定义ID到本地存储
+                localStorage.setItem('mangoBBCustomId', customId);
+                showNotification('自定义ID已保存');
+                
+                // 重新初始化Peer
+                initializePeer();
+            });
+            
+            // 重置为随机ID按钮事件
+            resetIdBtn.addEventListener('click', function() {
+                // 清除保存的自定义ID
+                localStorage.removeItem('mangoBBCustomId');
+                customIdInput.value = '';
+                showNotification('已重置为随机ID');
+                
+                // 重新初始化Peer
+                initializePeer();
+            });
+            
+            // 添加联系人按钮事件
+            addContactBtn.addEventListener('click', function() {
+                contactNameInput.value = '';
+                contactIdInput.value = '';
+                addContactModal.classList.remove('hidden');
+            });
+            
+            // 取消添加联系人按钮事件
+            cancelContactBtn.addEventListener('click', function() {
+                addContactModal.classList.add('hidden');
+            });
+            
+            // 保存联系人按钮事件
+            saveContactBtn.addEventListener('click', function() {
+                const contactName = contactNameInput.value.trim();
+                const contactId = contactIdInput.value.trim();
+                
+                if (!contactName) {
+                    showNotification('请输入联系人名称', true);
+                    return;
+                }
+                
+                if (!contactId) {
+                    showNotification('请输入联系人ID', true);
+                    return;
+                }
+                
+                if (contactId === peer.id) {
+                    showNotification('不能添加自己为联系人', true);
+                    return;
+                }
+                
+                // 保存联系人到本地存储
+                saveContact(contactName, contactId);
+                addContactModal.classList.add('hidden');
+                showNotification('联系人已保存');
+            });
+            
+            // 保存联系人到本地存储
+            function saveContact(name, id) {
+                const contacts = getContacts();
+                contacts.push({ name, id });
+                localStorage.setItem('mangoBBContacts', JSON.stringify(contacts));
+                renderContacts();
+            }
+            
+            // 从本地存储获取联系人列表
+            function getContacts() {
+                const contactsJSON = localStorage.getItem('mangoBBContacts');
+                return contactsJSON ? JSON.parse(contactsJSON) : [];
+            }
+            
+            // 加载联系人列表
+            function loadContacts() {
+                renderContacts();
+            }
+            
+            // 渲染联系人列表
+            function renderContacts() {
+                const contacts = getContacts();
+                contactsList.innerHTML = '';
+                
+                if (contacts.length === 0) {
+                    const emptyMessage = document.createElement('div');
+                    emptyMessage.className = 'contact-item empty-contacts';
+                    emptyMessage.textContent = '暂无联系人，点击"添加联系人"添加';
+                    contactsList.appendChild(emptyMessage);
+                    return;
+                }
+                
+                contacts.forEach((contact, index) => {
+                    const contactItem = document.createElement('div');
+                    contactItem.className = 'contact-item';
+                    
+                    const contactInfo = document.createElement('div');
+                    contactInfo.className = 'contact-info';
+                    
+                    const contactName = document.createElement('div');
+                    contactName.className = 'contact-name';
+                    contactName.textContent = contact.name;
+                    
+                    const contactId = document.createElement('div');
+                    contactId.className = 'contact-id';
+                    contactId.textContent = contact.id;
+                    
+                    contactInfo.appendChild(contactName);
+                    contactInfo.appendChild(contactId);
+                    
+                    const contactActions = document.createElement('div');
+                    contactActions.className = 'contact-actions';
+                    
+                    const connectBtn = document.createElement('button');
+                    connectBtn.className = 'contact-btn connect';
+                    connectBtn.textContent = '连接';
+                    connectBtn.addEventListener('click', function() {
+                        remoteIdInput.value = contact.id;
+                        connectBtn.click();
+                    });
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'contact-btn';
+                    deleteBtn.textContent = '删除';
+                    deleteBtn.addEventListener('click', function() {
+                        deleteContact(index);
+                    });
+                    
+                    contactActions.appendChild(connectBtn);
+                    contactActions.appendChild(deleteBtn);
+                    
+                    contactItem.appendChild(contactInfo);
+                    contactItem.appendChild(contactActions);
+                    
+                    contactsList.appendChild(contactItem);
+                });
+            }
+            
+            // 删除联系人
+            function deleteContact(index) {
+                const contacts = getContacts();
+                contacts.splice(index, 1);
+                localStorage.setItem('mangoBBContacts', JSON.stringify(contacts));
+                renderContacts();
+                showNotification('联系人已删除');
+            }
+            
+            // 按Enter键发送消息
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendBtn.click();
+                }
+            });
+            
+            // 按Enter键设置自定义ID
+            customIdInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    setCustomIdBtn.click();
+                }
+            });
+            
+            // 按Enter键保存联系人
+            contactIdInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    saveContactBtn.click();
+                }
+            });
+            
+            // 初始化检查免责声明
+            checkDisclaimer();
+        });
+    </script>
+</body>
+</html>
